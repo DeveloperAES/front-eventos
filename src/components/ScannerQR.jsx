@@ -1,61 +1,71 @@
-import React, { useEffect, useState } from "react";
-import { Html5QrcodeScanner } from "html5-qrcode";
+import React, { useEffect, useRef, useState } from "react";
+import { Html5Qrcode } from "html5-qrcode";
 import Swal from "sweetalert2";
 
 export default function ScannerQR() {
-  const [scanResult, setScanResult] = useState(null);
+  const [isScanning, setIsScanning] = useState(false);
+  const html5QrCodeRef = useRef(null);
 
   useEffect(() => {
-    const scanner = new Html5QrcodeScanner("reader", {
-      qrbox: { width: 250, height: 250 },
-      fps: 5,
-    });
-
-    scanner.render(onScanSuccess, onScanError);
-
-    function onScanSuccess(decodedText) {
-      setScanResult(decodedText);
-      scanner.clear(); // Detener cámara
-    }
-
-    function onScanError(err) {
-      console.warn(err);
-    }
+    html5QrCodeRef.current = new Html5Qrcode("reader");
+    startScanner();
 
     return () => {
-      scanner.clear().catch(err => console.error("Error limpiando scanner", err));
+      stopScanner();
     };
   }, []);
 
-  useEffect(() => {
-    if (scanResult) {
-      handleValidation(scanResult);
-    }
-  }, [scanResult]);
-
-  const handleValidation = async (decodedUrl) => {
+  const startScanner = async () => {
     try {
-      // Extraer el código del enlace (ej: .../validar/30ee6a89-e428-41ad-8edd-6acd1ef7b26d)
-      const codigo = decodedUrl.split("/validar/")[1];
-      if (!codigo) {
-        Swal.fire("Código inválido", "El QR no contiene un formato válido", "error");
-        return;
-      }
+      setIsScanning(true);
+      const cameras = await Html5Qrcode.getCameras();
+      if (cameras.length === 0) throw new Error("No se detectó cámara");
 
-      // Confirmar asistencia
-      const confirm = await Swal.fire({
-        title: "¿Registrar asistencia?",
-        text: "¿Deseas marcar al participante como asistente?",
-        icon: "question",
-        showCancelButton: true,
-        confirmButtonText: "Sí, confirmar",
-        cancelButtonText: "Cancelar",
-      });
+      const cameraId = cameras[0].id;
 
-      if (!confirm.isConfirmed) return;
+      await html5QrCodeRef.current.start(
+        cameraId,
+        { fps: 5, qrbox: 250 },
+        onScanSuccess,
+        onScanError
+      );
+    } catch (err) {
+      console.error("Error iniciando cámara:", err);
+      Swal.fire("Error", err.message, "error");
+    }
+  };
 
-      const response = await fetch(`http://localhost:4000/api/registros/validar/${codigo}`);
-      const data = await response.json();
+  const stopScanner = async () => {
+    if (html5QrCodeRef.current && isScanning) {
+      await html5QrCodeRef.current.stop();
+      await html5QrCodeRef.current.clear();
+      setIsScanning(false);
+    }
+  };
+
+  const onScanSuccess = async (decodedText) => {
+    await stopScanner();
+
+    const codigo = decodedText.split("/validar/")[1];
+    if (!codigo) {
+      Swal.fire("QR inválido", "El QR no contiene el formato esperado", "error");
+      return startScanner();
+    }
+
+    const confirm = await Swal.fire({
+      title: "¿Registrar asistencia?",
+      text: "¿Deseas marcar al participante como asistente?",
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonText: "Sí, confirmar",
+      cancelButtonText: "Cancelar",
+    });
+
+    if (!confirm.isConfirmed) return startScanner();
+
+    try {
+      const res = await fetch(`http://localhost:4000/api/registros/validar/${codigo}`);
+      const data = await res.json();
 
       if (data.ok) {
         Swal.fire("✅ Éxito", data.mensaje, "success");
@@ -64,15 +74,22 @@ export default function ScannerQR() {
       }
     } catch (error) {
       Swal.fire("Error", "No se pudo validar el código QR", "error");
-    } finally {
-      setScanResult(null); // Reset para volver a escanear
     }
+
+    startScanner();
+  };
+
+  const onScanError = (err) => {
+    // Silencioso para no llenar la consola
   };
 
   return (
     <div style={{ textAlign: "center" }}>
       <h2>Escanear Código QR</h2>
-      <div id="reader" style={{ width: "300px", margin: "auto" }}></div>
+      <div id="reader" style={{ width: "320px", margin: "auto" }}></div>
+      <button onClick={isScanning ? stopScanner : startScanner}>
+        {isScanning ? "Detener escáner" : "Iniciar escáner"}
+      </button>
     </div>
   );
 }
