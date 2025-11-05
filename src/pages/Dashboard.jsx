@@ -12,7 +12,7 @@ export default function Dashboard() {
     <div className="flex min-h-screen bg-gray-100">
       {/* Sidebar */}
       <aside className="w-64 bg-white shadow-md">
-        <div className="p-4 text-xl font-semibold border-b">Panel Xplora</div>
+        <div className="p-4 text-xl font-semibold border-b">Panel BOOOM</div>
         <nav className="p-4 space-y-2">
           <Link to="/dashboard/usuarios" className="block hover:text-blue-600">
             Usuarios

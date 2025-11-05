@@ -114,7 +114,7 @@ export default function Usuarios() {
                           Confirmando...
                         </>
                       ) : (
-                        "Confirmar"
+                        "Enviar Datos"
                       )}
                     </button>
                   ) : (

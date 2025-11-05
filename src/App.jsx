@@ -6,6 +6,7 @@ import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Usuarios from "./pages/Usuarios";
 import ValidarQR from "./pages/ValidarQR";
+import PageQr from "./pages/PageQr";
 
 function PrivateRoute({ children }) {
   const { admin } = useAuth();
@@ -30,6 +31,7 @@ export default function App() {
         <Routes>
           {/* PÚBLICO */}
           <Route path="/" element={<Home />} />
+          <Route path="/lector-qr" element={<PageQr />} />
           <Route path="/login" element={<Login />} />
 
           {/* ADMIN */}
